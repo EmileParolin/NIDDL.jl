@@ -48,7 +48,6 @@ function (s::GMRES_S)(ddm::DDM; resfunc=(it)->zeros(Float64,1), to=missing)
     # Residual (or other types of error)
     res = zeros(Float64,s.maxit+1,length(resfunc(0))).+Inf # for convergence plots
     res[1,:] = resfunc(0); @info "Iteration 0 at $(res[1,:])"
-    local it = 0
     @timeit to "Iterations" for (it,resl2) in enumerate(g)
         # Computation of residual/error
         if (it%restart==0 || resl2/res[1,1]<s.tol || it==s.maxit)
@@ -65,7 +64,7 @@ function (s::GMRES_S)(ddm::DDM; resfunc=(it)->zeros(Float64,1), to=missing)
     # Computation of residual/error
     s.x = g.x
     s.Ax = ddm.A(s.x) # /!\ not always updated by GMRES
-    @info "Converged in $(it) iterations at $(resfunc(it) ./ res[1,1]) (relative)"
+    @info "Converged at $(resfunc(Inf) ./ res[1,1]) (relative)"
     # Computing solution
     u = L(s.x) + F
     return u, s.x, res

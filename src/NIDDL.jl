@@ -15,11 +15,11 @@ import IterativeSolvers: gmres
 
 using NIDDL_FEM
 
+abstract type AbstractProblem end
+
 abstract type BoundaryCondition end
 abstract type PhysicalBC <: BoundaryCondition end
 abstract type TransmissionBC <: BoundaryCondition end
-
-abstract type AbstractProblem end
 
 """
 Local lifting operator: takes an incoming trace and solves the local
@@ -33,8 +33,8 @@ trace.
 """
 abstract type LocalScatteringOp end
 
-"""Local (to a domain - operator may be non-local) exchange operator: takes a
-global trace and computes the local ouput after exchange.
+"""Local exchange operator: takes a global trace and computes the local output
+after exchange.
 
 Note that there is a minus sign embedded in this exchange operator.
 This sign comes from the fact that the implicit projector behind Π is a
@@ -42,6 +42,10 @@ projector on Neumann traces.
 """
 abstract type LocalExchangeOp end
 
+abstract type DDM_Type end
+
+abstract type AbstractInputData end
+abstract type AbstractGlobalData end
 abstract type AbstractLocalData end
 
 abstract type Solver end
@@ -54,9 +58,8 @@ matrix() = error("Required by NIDDL")
 DtN() = error("Required by NIDDL")
 
 include("ddm.jl")
-include("setup.jl")
-include("standard_exchange.jl")
-include("nonlocal_exchange.jl")
+include("onion.jl")
+include("junctions.jl")
 include("richardson.jl")
 include("gmres.jl")
 
@@ -65,9 +68,14 @@ export
     PhysicalBC,
     TransmissionBC,
     AbstractProblem,
+
     LocalLiftingOp,
     LocalScatteringOp,
     LocalExchangeOp,
+    DDM_Type,
+    AbstractInputData,
+    AbstractGlobalData,
+    AbstractLocalData,
 
     dofdim,
     get_matrix,
@@ -77,40 +85,39 @@ export
     DtN,
 
     # ddm.jl
-    AbstractLocalData,
-    GlobalLiftingOp,
-    GlobalScatteringOp,
-    ExchangeOp,
-    BasicExchangeOp,
-    Aop,
-    DDM,
-
-    # setup.jl
-    LocalData,
-    femDDM,
     init_global_solution,
     init_global_trace,
     global2local_trace,
     local2global_solution,
     local2global_trace,
     local_lifting_correction,
-    detect_junctions, junction_weights,
+    GlobalLiftingOp,
+    GlobalScatteringOp,
+    GlobalExchangeOp,
+    Aop,
+    DDM,
 
-    # standard_exchange.jl
-    BasicLiftingOp,
-    ImplicitLocalScatteringOp,
-    ExplicitLocalScatteringOp,
-    BasicExchangeOp,
+    # onion.jl
+    OnionDDM,
+    OnionLocalData,
+    OnionGlobalData,
+    OnionLocalLiftingOp,
+    OnionLocalScatteringOpImplicit,
+    OnionLocalScatteringOpExplicit,
+    OnionLocalExchangeOp,
 
-    # nonlocal_exchange.jl
-    XPLiftingOp,
-    XPScatteringOp,
-    ImplicitXPExchangeOp,
-    ExplicitXPExchangeOp,
+    # junctions.jl
+    JunctionsDDM,
+    JunctionsLocalData,
+    JunctionsGlobalData,
+    JunctionsLocalLiftingOp,
+    JunctionsLocalScatteringOp,
+    JunctionsLocalExchangeOpImplicit,
+    JunctionsLocalExchangeOpExplicit,
 
     # richardson.jl
     Jacobi_S, jacobi,
-    #
+
     # gmres.jl
     GMRES_S, gmres
 
