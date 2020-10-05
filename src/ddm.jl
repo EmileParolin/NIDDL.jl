@@ -8,12 +8,9 @@ local2global_solution(ld::AbstractLocalData, ui) = ld.MΩitoΩ * ui
 local2global_solution(ld::AbstractLocalData, ui, u) = mul!(u, ld.MΩitoΩ, ui)
 local2global_trace(ld::AbstractLocalData, xi) = ld.MΣitoΣmt * xi
 local2global_trace(ld::AbstractLocalData, xi, x) = mul!(x, ld.MΣitoΣmt, xi)
-local_lifting_correction(ld::AbstractLocalData, ui) = ui - ld.Ctbc_Σi * ui
+local_lifting_correction(ld::AbstractLocalData, ui) = ld.corr .* ui
 function local_lifting_correction(ld::AbstractLocalData, ui, vi)
-    # vi = ui - ld.Ctbc_Σi * ui
-    mul!(vi, ld.Ctbc_Σi, ui)
-    lmul!(-1, vi)
-    axpy!(1, ui, vi)
+    vi .= ld.corr .* ui
 end
 
 
@@ -43,6 +40,7 @@ function (GL::GlobalLiftingOp)(x)
         global2local_trace(ld, x, xi)
         ui = ld.Li(xi)
         local_lifting_correction(ld, ui, vi)
+        lmul!(0,GL.v)
         local2global_solution(ld, vi, GL.v)
         axpy!(1, GL.v, GL.u)
     end
@@ -68,8 +66,7 @@ function (GS::GlobalScatteringOp)(x)
     for (xi, ld) in zip(GS.xis, GS.lds) # TODO parallelize
         global2local_trace(ld, x, xi)
         si = ld.Si(xi)
-        local2global_trace(ld, si, GS.s)
-        axpy!(1, GS.s, GS.y)
+        local2global_trace(ld, si, GS.y)
     end
     return GS.y
 end
@@ -95,6 +92,7 @@ function (Π::GlobalExchangeOp)(x)
     setup_exchange(Π.gd, Π.lds, x)
     for ld in Π.lds # TODO parallelize
         Πxi = ld.Πi(x)
+        lmul!(0,Π.s)
         local2global_trace(ld, Πxi, Π.s)
         axpy!(1, Π.s, Π.y)
     end
@@ -133,7 +131,7 @@ struct DDM{T1,T2,R<:AbstractGlobalData,S<:AbstractLocalData}
     # RHS of interface problem (I-A)x = b
     b::Array{T2,1} # expressed in weak form <ik (Tij+Tji) Fi, G^t>
 end
-function DDM(pbs::Vector{P}, id::I, dd::T; to=missing
+function DDM(pbs::Vector{P}, gid::I, dd::T; to=missing
             ) where P <: AbstractProblem where I <: AbstractInputData where T <: DDM_Type
     if ismissing(to) to = TimerOutputs.get_defaulttimer() end
     @timeit to "Offline" begin
@@ -144,10 +142,10 @@ function DDM(pbs::Vector{P}, id::I, dd::T; to=missing
         lds = Vector{localdata_type(dd)}(undef, n)
         for i in 1:n # TODO parallelize
             @info "==> Problem $i on CPU $(myid())"
-            lds[i] = localdata_type(dd)(pbs, id, dd, i; to=to)
+            lds[i] = localdata_type(dd)(pbs, gid, dd, i; to=to)
         end
         # Offline global computations
-        gd = globaldata_type(dd)(lds, id, dd; to=to)
+        gd = globaldata_type(dd)(lds, gid, dd; to=to)
         # Global operators
         L = GlobalLiftingOp(gd, lds)
         S = GlobalScatteringOp(gd, lds)
@@ -164,18 +162,4 @@ function DDM(pbs::Vector{P}, id::I, dd::T; to=missing
         b = copy(Π(b))
     end
     DDM(gd,lds,A,L,F,b)
-end
-
-
-function mapping_ΣitoΣmt(NΣis, i)
-    i0 = 1 # first index of line
-    imax = 0 # total number of lines
-    for (k,NΣk) in enumerate(NΣis)
-        imax += NΣk
-        if k<i i0 += NΣk end
-    end
-    I = i0 : (i0+NΣis[i]-1)
-    J = 1 : NΣis[i]
-    V = ones(Bool,NΣis[i])
-    return sparse(I,J,V,imax,NΣis[i])
 end

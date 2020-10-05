@@ -1,5 +1,7 @@
 module NIDDL
 
+import Base: *
+
 using LinearAlgebra
 using SparseArrays
 using SuiteSparse
@@ -9,17 +11,8 @@ using LinearMaps
 using IterativeSolvers
 using TimerOutputs
 
-import Base: +,-,*,/,zero
-import LinearAlgebra: norm, ldiv!
+import LinearAlgebra: norm, size, transpose, mul!, ldiv!
 import IterativeSolvers: gmres
-
-using NIDDL_FEM
-
-abstract type AbstractProblem end
-
-abstract type BoundaryCondition end
-abstract type PhysicalBC <: BoundaryCondition end
-abstract type TransmissionBC <: BoundaryCondition end
 
 """
 Local lifting operator: takes an incoming trace and solves the local
@@ -44,19 +37,26 @@ abstract type LocalExchangeOp end
 
 abstract type DDM_Type end
 
+abstract type AbstractProblem end
 abstract type AbstractInputData end
 abstract type AbstractGlobalData end
 abstract type AbstractLocalData end
 
 abstract type Solver end
 
-dofdim() = error("Required by NIDDL")
-get_matrix() = error("Required by NIDDL")
-get_rhs() = error("Required by NIDDL")
-transmission_boundary() = error("Required by NIDDL")
-matrix() = error("Required by NIDDL")
-DtN() = error("Required by NIDDL")
+indices_full_domain(gid::AbstractInputData) = error("Required by NIDDL")
+indices_skeleton(gid::AbstractInputData) = error("Required by NIDDL")
+indices_domain(gid::AbstractInputData, pb::AbstractProblem) = error("Required by NIDDL")
+indices_transmission_boundary(gid::AbstractInputData, pb::AbstractProblem) = error("Required by NIDDL")
+size_multi_trace(gid::AbstractInputData) = error("Required by NIDDL")
+dof_weights(gid::AbstractInputData) = error("Required by NIDDL")
+get_matrix(gid::AbstractInputData, pb::AbstractProblem) = error("Required by NIDDL")
+get_matrix_no_transmission_BC(gid::AbstractInputData, pb::AbstractProblem) = error("Required by NIDDL")
+get_rhs(gid::AbstractInputData, pb::AbstractProblem) = error("Required by NIDDL")
+get_transmission_matrix(gid::AbstractInputData, pb::AbstractProblem) = error("Required by NIDDL")
+DtN(gid::AbstractInputData, pb::AbstractProblem) = error("Required by NIDDL")
 
+include("mapping.jl")
 include("ddm.jl")
 include("onion.jl")
 include("junctions.jl")
@@ -64,25 +64,24 @@ include("richardson.jl")
 include("gmres.jl")
 
 export
-    BoundaryCondition,
-    PhysicalBC,
-    TransmissionBC,
     AbstractProblem,
+    AbstractInputData,
+    AbstractGlobalData,
+    AbstractLocalData,
+    indices_full_domain, indices_skeleton, indices_domain, indices_transmission_boundary,
+    size_multi_trace, dof_weights,
+    get_matrix, get_rhs,
+    DtN,
 
     LocalLiftingOp,
     LocalScatteringOp,
     LocalExchangeOp,
     DDM_Type,
-    AbstractInputData,
-    AbstractGlobalData,
-    AbstractLocalData,
 
-    dofdim,
-    get_matrix,
-    get_rhs,
-    transmission_boundary,
-    matrix,
-    DtN,
+    # mapping.jl
+    Mapping,
+    mapping_from_global_indices, matrix,
+    size, transpose, mul!,
 
     # ddm.jl
     init_global_solution,
