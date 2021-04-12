@@ -244,10 +244,10 @@ function setup_exchange(gd::JunctionsGlobalData,
         fill!(gd.xst, 0)
         if length(gd.ProjP) == 0 # No preconditioning
             gd.xst, ch = cg!(gd.xst, gd.ProjA, gd.bst;
-                            tol=1.e-14, verbose=true, log=true)
+                            reltol=1.e-14, verbose=false, log=true)
         else
             gd.xst, ch = cg!(gd.xst, gd.ProjA, gd.bst; Pl= gd.ProjP.f,
-                            tol=1.e-14, verbose=true, log=true)
+                            reltol=1.e-14, verbose=false, log=true)
         end
         # Logging
         if ch.iters > 0 gd.cg_min = min(gd.cg_min, ch.iters) end

@@ -33,7 +33,8 @@ function (s::Jacobi_S)(ddm::DDM; resfunc=(it)->zeros(Float64,1), to=missing)
             # Matrix vector product
             t = @elapsed s.Ax = A(s.x)
             # L2 norm of the residual of the linear system (I-A)x = b (default)
-            res[it+1,:] = resfunc(it); @info "Iteration $(it) at $(res[it+1,:]) in $(t) seconds"
+            res[it+1,:] = resfunc(it)
+            it%20 == 0 && @info "Iteration $(it) at $(res[it+1,:]) in $(t) seconds"
             # Relaxed Jacobi iteration
             # x = @. r*x + (1-r)*Ax + (1-r)*b
             lmul!(s.r,s.x)

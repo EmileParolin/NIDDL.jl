@@ -42,23 +42,22 @@ function (s::GMRES_S)(ddm::DDM; resfunc=(it)->zeros(Float64,1), to=missing)
     # GMRES iterator
     x = deepcopy(s.x)
     g = IterativeSolvers.gmres_iterable!(x, A, b;
-                                         tol=s.tol,
+                                         reltol=s.tol,
                                          maxiter=s.maxit,
-                                         restart=restart)
+                                         restart=restart,
+                                         light_mode=s.light_mode)
     # Residual (or other types of error)
     res = zeros(Float64,s.maxit+1,length(resfunc(0))).+Inf # for convergence plots
     res[1,:] = resfunc(0); @info "Iteration 0 at $(res[1,:])"
     @timeit to "Iterations" for (it,resl2) in enumerate(g)
         # Computation of residual/error
-        if (it%restart==0 || resl2/res[1,1]<s.tol || it==s.maxit)
-            s.x = g.x
+        if !s.light_mode
+            s.x = g.xbis
             s.Ax = ddm.A(s.x) # /!\ not always updated by GMRES
             res[it+1,:] = resfunc(it)
-        else
-            res[it+1,:] = res[it,:]
         end
         res[it+1,1] = resl2 # exact l2 residual
-        @info "Iteration $(it) at $(res[it+1,:])"
+        it%20 == 0 && @info "Iteration $(it) at $(res[it+1,:])"
         if isnan(resl2) break end
     end
     # Computation of residual/error
